@@ -16,12 +16,27 @@ function detectCategory(message) {
   return 'general';
 }
 
+// Detect if user wants a detailed/elaborated response
+function isElaborationRequest(message) {
+  const msg = message.toLowerCase();
+  const triggers = [
+    'explain', 'elaborate', 'tell me more', 'more detail', 'in detail',
+    'what does that mean', 'what do you mean', 'how does', 'how do i',
+    'step by step', 'walk me through', 'break it down', 'full', 'complete',
+    'everything about', 'all about', 'clarify', 'describe', 'expand',
+    'what is', 'what are', 'why is', 'why does', 'can you explain',
+    'please explain', 'more about', 'know more', 'want to know'
+  ];
+  return triggers.some(t => msg.includes(t));
+}
+
 // POST /api/chats/message — stateless, no auth required
 router.post('/message', async (req, res) => {
   const { message, history } = req.body;
   if (!message?.trim()) return res.status(400).json({ success: false, message: 'Message required' });
 
   const lang = req.body.lang || 'en';
+  const detailed = isElaborationRequest(message);
 
   try {
     const langInstructions = {
@@ -30,6 +45,30 @@ router.post('/message', async (req, res) => {
       bn: 'সম্পূর্ণ উত্তর বাংলায় দিন। সহজ ও স্পষ্ট বাংলা ব্যবহার করুন যা সাধারণ নাগরিক বুঝতে পারেন। আইনি শব্দগুলির পাশে তাদের বাংলা অর্থও উল্লেখ করুন।'
     };
     const langInstruction = langInstructions[lang] || langInstructions['en'];
+
+    const briefGuidelines = `RESPONSE GUIDELINES (BRIEF MODE):
+1. Be CONCISE — 3 to 5 sentences max. Users need quick answers, not essays.
+2. Lead with the single most important action or right.
+3. Cite the relevant law/section briefly (e.g., "under Section 41A CrPC").
+4. If urgent, mention emergency contacts in one line (100 police, 112 emergency).
+5. Only add "Consult a lawyer for court matters." if the situation genuinely requires it.
+6. No long bullet lists. No section headers. Write in plain, direct sentences.
+
+Tone: calm, clear, empowering. This is legal information, not legal advice.`;
+
+    const detailedGuidelines = `RESPONSE GUIDELINES (DETAILED MODE):
+The user wants a thorough explanation. Give a complete, well-structured answer covering:
+1. A clear explanation of the legal situation or concept
+2. Relevant laws, sections, and articles with what they mean in plain language
+3. Step-by-step actions the user can take
+4. Their rights and what authorities can/cannot do
+5. Practical tips, deadlines, or documents needed
+6. When and why to consult a lawyer
+7. Emergency contacts if relevant (100 police, 112 emergency)
+
+Use clear headings and bullet points to organize the response. Be thorough but keep language simple.
+
+Tone: calm, clear, empowering. This is legal information, not legal advice.`;
 
     const systemPrompt = `You are Nyay Mitra (meaning "Legal Friend" in Hindi), an expert Indian legal assistant. You provide accurate, practical legal guidance based on Indian laws, the Constitution of India, and citizens' rights.
 
@@ -47,15 +86,7 @@ Your expertise covers:
 
 LANGUAGE INSTRUCTION: ${langInstruction}
 
-RESPONSE GUIDELINES:
-1. Be CONCISE — 3 to 5 sentences max. Users need quick answers, not essays.
-2. Lead with the single most important action or right.
-3. Cite the relevant law/section briefly (e.g., "under Section 41A CrPC").
-4. If urgent, mention emergency contacts in one line (100 police, 112 emergency).
-5. Only add "Consult a lawyer for court matters." if the situation genuinely requires it.
-6. No long bullet lists. No section headers. Write in plain, direct sentences.
-
-Tone: calm, clear, empowering. This is legal information, not legal advice.`;
+${detailed ? detailedGuidelines : briefGuidelines}`;
 
     // Build Gemini conversation (history passed from frontend localStorage)
     const conversationHistory = (history || []).slice(-10);
@@ -76,7 +107,10 @@ Tone: calm, clear, empowering. This is legal information, not legal advice.`;
       {
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents,
-        generationConfig: { maxOutputTokens: 400, temperature: 0.7 }
+        generationConfig: {
+          maxOutputTokens: detailed ? 1500 : 400,
+          temperature: 0.7
+        }
       },
       { headers: { 'Content-Type': 'application/json' } }
     );
@@ -86,7 +120,8 @@ Tone: calm, clear, empowering. This is legal information, not legal advice.`;
     res.json({
       success: true,
       reply: aiReply,
-      category: detectCategory(message)
+      category: detectCategory(message),
+      mode: detailed ? 'detailed' : 'brief'
     });
 
   } catch (err) {
