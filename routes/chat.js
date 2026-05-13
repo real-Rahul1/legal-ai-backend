@@ -48,16 +48,14 @@ Your expertise covers:
 LANGUAGE INSTRUCTION: ${langInstruction}
 
 RESPONSE GUIDELINES:
-1. Start with immediate, actionable advice for the situation
-2. Cite specific Indian laws, sections, or articles when relevant
-3. Explain rights clearly in simple language
-4. Use structured format: 🚨 Immediate Steps → ⚖️ Your Rights → 📋 Legal Framework → 💡 Pro Tips
-5. Always mention when to consult a lawyer for complex matters
-6. Be empathetic and reassuring — many users are in stressful situations
-7. For emergencies, provide emergency contacts (100 for police, 112 national emergency)
-8. Note: This is legal information, not legal advice. Recommend professional lawyers for court matters.
+1. Be CONCISE — 3 to 5 sentences max. Users need quick answers, not essays.
+2. Lead with the single most important action or right.
+3. Cite the relevant law/section briefly (e.g., "under Section 41A CrPC").
+4. If urgent, mention emergency contacts in one line (100 police, 112 emergency).
+5. Only add "Consult a lawyer for court matters." if the situation genuinely requires it.
+6. No long bullet lists. No section headers. Write in plain, direct sentences.
 
-Always respond in a helpful, clear, and empowering tone — help citizens know their rights!`;
+Tone: calm, clear, empowering. This is legal information, not legal advice.`;
 
     // Build Gemini conversation (history passed from frontend localStorage)
     const conversationHistory = (history || []).slice(-10);
@@ -78,7 +76,7 @@ Always respond in a helpful, clear, and empowering tone — help citizens know t
       {
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents,
-        generationConfig: { maxOutputTokens: 1500, temperature: 0.7 }
+        generationConfig: { maxOutputTokens: 400, temperature: 0.7 }
       },
       { headers: { 'Content-Type': 'application/json' } }
     );
